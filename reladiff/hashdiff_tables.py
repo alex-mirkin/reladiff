@@ -27,10 +27,11 @@ DEFAULT_BISECTION_FACTOR = 32
 logger = logging.getLogger("hashdiff_tables")
 
 
-def diff_sets(a: list, b: list) -> Iterator:
+def diff_sets(a: list, b: list, keys_length: int) -> Iterator:
     c = Counter(b)
     c.subtract(a)
-    x = sorted(c.items(), key=lambda i: i[0])   # sort by key
+    # The first keys_length columns are always the key columns
+    x = sorted(c.items(), key=lambda i: (i[0][:keys_length], i[1] > 0))  # Sort by key, then by sign
     for k, count in x:
         if count < 0:
             sign = "-"
@@ -201,7 +202,7 @@ class HashDiffer(TableDiffer):
         # This saves time, as bisection speed is limited by ping and query performance.
         if max_rows < self.bisection_threshold or max_space_size < self.bisection_factor * 2:
             rows1, rows2 = self._threaded_call("get_values", [table1, table2])
-            diff = list(diff_sets(rows1, rows2))
+            diff = list(diff_sets(rows1, rows2, len(info_tree.info.tables[0].key_columns)))
 
             info_tree.info.set_diff(diff)
             info_tree.info.rowcounts = {1: len(rows1), 2: len(rows2)}
